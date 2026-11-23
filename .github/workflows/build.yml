@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Check starter highlight rules
+      - name: Check continuous enhancement timer
         run: dotnet run --project tests/ViperStarterChecks.csproj --configuration Release
       - name: Build against Dalamud API 15
         run: |

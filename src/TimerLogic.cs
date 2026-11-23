@@ -13,28 +13,21 @@ internal sealed unsafe class TimerLogic(IDataManager data)
 
     internal float? Remaining(IBattleChara player, bool viperPve)
     {
-        var actions = ActionManager.Instance();
-        if (actions == null)
-            return null;
-
         if (viperPve)
         {
             foreach (var status in player.StatusList)
             {
-                var starter = ViperStarter.FromStatus(status.StatusId);
-                if (starter == 0 || !(status.RemainingTime > 0))
-                    continue;
-
-                // The same slots also hold second/third steps and Reawaken actions.
-                // Check the effective action and its native highlight before showing its buff.
-                var effective = actions->GetAdjustedActionId(starter);
-                var highlighted = effective == starter && actions->IsActionHighlighted(ActionType.Action, starter);
-                var remaining = ViperStarter.Remaining(starter, effective, highlighted, status.RemainingTime);
+                // The enhancement keeps its duration while the hotbar shows later combo steps.
+                var remaining = ViperStarter.Remaining(status.StatusId, status.RemainingTime);
                 if (remaining.HasValue)
                     return remaining;
             }
             return null;
         }
+
+        var actions = ActionManager.Instance();
+        if (actions == null)
+            return null;
 
         var combo = actions->Combo;
         if (combo.Timer <= 0 || combo.Action == 0)

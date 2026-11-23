@@ -66,7 +66,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         var player = objects.LocalPlayer;
         var viperPve = player?.ClassJob.RowId == TimerLogic.ViperJob && !client.IsPvP;
         var seconds = player == null ? null : timer.Remaining(player, viperPve);
-        hud.Draw(addon, config, seconds, !viperPve && config.AlwaysVisible);
+        hud.Draw(addon, config, seconds, config.AlwaysVisible);
     }
 
     private void OnFinalizeHud(AddonEvent _, AddonArgs args) => hud.Remove((AtkUnitBase*)args.Addon.Address);
@@ -79,11 +79,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
         bool visible = ImGui.Begin("Combo Timer###WayneComboTimer", ref settingsOpen);
         if (visible)
         {
-            ImGui.TextWrapped("Viper shows the remaining enhancement only while Steel Fangs or Reaving Fangs is highlighted. Other jobs use the normal combo timer.");
+            ImGui.TextWrapped("Viper continuously shows the remaining Honed Steel or Honed Reavers duration through all combo steps. Other jobs use the normal combo timer.");
             var label = config.NoComboText;
             if (ImGui.Checkbox("Hide 'Combo' text", ref label)) { config.NoComboText = label; settingsDirty = true; }
             var idle = config.AlwaysVisible;
-            if (ImGui.Checkbox("Always visible on other jobs", ref idle)) { config.AlwaysVisible = idle; settingsDirty = true; }
+            if (ImGui.Checkbox("Always visible", ref idle)) { config.AlwaysVisible = idle; settingsDirty = true; }
             var size = config.FontSize;
             if (ImGui.SliderInt("Font size", ref size, 6, 255)) { config.FontSize = size; settingsDirty = true; }
             var x = config.OffsetX;
