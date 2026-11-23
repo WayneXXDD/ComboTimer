@@ -42,7 +42,12 @@ internal sealed unsafe class TimerLogic(IDataManager data)
         foreach (var action in data.GetExcelSheet<SheetAction>())
         {
             var previous = action.ActionCombo.RowId;
-            if (previous != 0 && (!result.TryGetValue(previous, out var level) || action.ClassJobLevel < level))
+            // Retired/NPC actions can have level zero and must not unlock a player's next step.
+            if (previous == 0 || action.ClassJobCategory.RowId == 0 ||
+                (action.ClassJobLevel == 0 && !action.IsPvP))
+                continue;
+
+            if (!result.TryGetValue(previous, out var level) || action.ClassJobLevel < level)
                 result[previous] = action.ClassJobLevel;
         }
 
