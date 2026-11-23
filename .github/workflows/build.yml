@@ -1,0 +1,78 @@
+name: Build and publish Combo Timer
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['src/**', 'tests/**', 'WayneComboTimer.json', 'LICENSE', 'README.md', '.github/workflows/build.yml']
+permissions:
+  contents: write
+concurrency:
+  group: combo-timer-publish
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check starter highlight rules
+        run: dotnet run --project tests/ViperStarterChecks.csproj --configuration Release
+      - name: Build against Dalamud API 15
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'dalamud'
+          $zip = Join-Path $env:RUNNER_TEMP 'dalamud.zip'
+          Invoke-WebRequest 'https://goatcorp.github.io/dalamud-distrib/latest.zip' -OutFile $zip
+          Expand-Archive -LiteralPath $zip -DestinationPath $dir
+          if ([Reflection.AssemblyName]::GetAssemblyName((Join-Path $dir 'Dalamud.dll')).Version.Major -ne 15) { throw 'Expected Dalamud API 15.' }
+          dotnet build src/WayneComboTimer.csproj -c Release "-p:DalamudDir=$dir" -o build
+      - name: Package and publish to plugin-repo
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $m = Get-Content -Raw WayneComboTimer.json | ConvertFrom-Json
+          $dll = [Reflection.AssemblyName]::GetAssemblyName((Join-Path $PWD 'build/WayneComboTimer.dll'))
+          if ($m.InternalName -cne $dll.Name -or $dll.Version.ToString() -ne $m.AssemblyVersion -or $m.DalamudApiLevel -ne 15) { throw 'Package identity mismatch.' }
+
+          $feed = Join-Path $env:RUNNER_TEMP 'combo-timer-feed'
+          $branch = 'plugin-repo'
+          function Git([string[]]$Arguments) {
+            & git.exe @Arguments
+            if ($LASTEXITCODE -ne 0) { throw "Git failed: $($Arguments[0])" }
+          }
+          $remote = git.exe ls-remote --heads origin refs/heads/plugin-repo
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read distribution branch.' }
+          if ($remote) {
+            Git @('fetch','--depth=1','origin','refs/heads/plugin-repo')
+            Git @('worktree','add','--detach',$feed,'FETCH_HEAD')
+          } else {
+            Git @('worktree','add','--detach',$feed,'HEAD')
+            Git @('-C',$feed,'switch','--orphan',$branch)
+          }
+          $previous = Join-Path $feed 'build-manifest.json'
+          if (Test-Path -LiteralPath $previous) {
+            $old = @(Get-Content -Raw $previous | ConvertFrom-Json)[0]
+            if ([version]$old.AssemblyVersion -gt [version]$m.AssemblyVersion) { throw 'Refusing a downgrade.' }
+          }
+          $folder = Join-Path $feed 'plugins/WayneComboTimer'
+          New-Item -ItemType Directory -Force $folder | Out-Null
+          $zip = Join-Path $folder 'latest.zip'
+          Compress-Archive -LiteralPath build/WayneComboTimer.dll,WayneComboTimer.json,LICENSE,README.md -DestinationPath $zip -Force
+          $archive = [IO.Compression.ZipFile]::OpenRead($zip)
+          try {
+            $names = @($archive.Entries.FullName | Sort-Object)
+            if (($names -join ',') -cne 'LICENSE,README.md,WayneComboTimer.dll,WayneComboTimer.json') { throw "Unexpected ZIP entries: $names" }
+          } finally { $archive.Dispose() }
+          [IO.File]::WriteAllText($previous, (ConvertTo-Json -InputObject @($m) -Depth 20) + [Environment]::NewLine)
+          Git @('-C',$feed,'config','user.name','github-actions[bot]')
+          Git @('-C',$feed,'config','user.email','41898282+github-actions[bot]@users.noreply.github.com')
+          Git @('-C',$feed,'add','--','build-manifest.json','plugins/WayneComboTimer/latest.zip')
+          git.exe -C $feed diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) { Write-Host 'Already current.'; exit 0 }
+          if ($LASTEXITCODE -ne 1) { throw 'Cannot inspect the staged package.' }
+          Git @('-C',$feed,'commit','-m',"Publish Combo Timer $($m.AssemblyVersion)")
+          Git @('-C',$feed,'push','origin','HEAD:refs/heads/plugin-repo')
+          Write-Host "Verified Combo Timer $($m.AssemblyVersion); SHA256 $((Get-FileHash $zip).Hash)"
