@@ -33,7 +33,7 @@ internal sealed unsafe class TimerLogic(IDataManager data)
         if (combo.Timer <= 0 || combo.Action == 0)
             return null;
         nextLevels ??= BuildNextActionLevels();
-        return nextLevels.TryGetValue(combo.Action, out var level) && player.Level >= level ? combo.Timer : null;
+        return ComboActions.HasNext(combo.Action, player.Level, nextLevels) ? combo.Timer : null;
     }
 
     private Dictionary<uint, byte> BuildNextActionLevels()
