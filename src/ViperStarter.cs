@@ -11,7 +11,7 @@ internal static class ViperStarter
             return null;
 
         // Self-applied statuses use a negative duration until the server's EffectResult arrives.
-        var remaining = MathF.Abs(seconds);
+        var remaining = System.MathF.Abs(seconds);
         return remaining > 0 ? remaining : null;
     }
 }
