@@ -80,7 +80,14 @@ public sealed unsafe class Plugin : IDalamudPlugin
         try
         {
             if (Stopwatch.GetElapsedTime(lastSourceCheck).TotalSeconds > 1) CheckSources();
-            statistics.Update(Active(5), Active(6) && client.IsLoggedIn, config.Fps, config.Ping);
+            // Read game objects only on the framework thread; the worker receives just the DC ID.
+            uint dataCenterId = objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.RowId ?? 0u;
+            statistics.Update(Active(5), Active(6) && client.IsLoggedIn, config.Fps, config.Ping, dataCenterId);
+            var ping = statistics.Monitor.Current;
+            settings.PingStatus = string.IsNullOrEmpty(ping.Address) ? ping.Error ?? "正在取得測量位址…" :
+                (ping.UsingDataCenter ? "使用資料中心備援位址（連線經過轉接時，可能與實際遊戲連線延遲不同）" :
+                    "使用遊戲連線位址") + "\n" + ping.Address +
+                (ping.Error is null ? "" : "\n" + ping.Error);
         }
         catch (Exception e) { Report(e); }
     }

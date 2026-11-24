@@ -8,7 +8,7 @@ namespace WayneComboTimer;
 
 internal sealed class SettingsUi : IDisposable
 {
-    internal static readonly string[] Names = ["連段倒數", "敵人血量", "敵人減益", "距離顯示", "個人減益放大", "FPS", "Ping"];
+    internal static readonly string[] Names = ["Combo Timer", "EnemyListHP", "EnemyListDebuffs", "Distance", "BigPlayerDebuffs", "FPS Plugin", "PingPlugin"];
     internal static readonly string[] Sources = ["SimpleTweaksPlugin", "EnmityHp", "EnemyListDebuffs", "Distance",
         "BigPlayerDebuffs", "FPSPlugin", "PingPlugin"];
     private readonly IDalamudPluginInterface pi;
@@ -21,6 +21,7 @@ internal sealed class SettingsUi : IDisposable
     private int selected;
     private bool open;
     private bool resize = true;
+    internal string PingStatus { get; set; } = "正在取得測量位址…";
 
     internal SettingsUi(IDalamudPluginInterface pi, Configuration config, IPluginLog log,
         Func<int, bool> sourceLoaded, Action changed)
@@ -267,6 +268,8 @@ internal sealed class SettingsUi : IDisposable
 
     private void Ping()
     {
+        ImGui.TextWrapped(PingStatus);
+        ImGui.Separator();
         var s = c.Ping;
         Select("顯示模式", s.DisplayMode, v => s.DisplayMode = v, ["完整浮窗", "精簡浮窗", "微型浮窗", "DTR"]);
         Select("測量方式", s.TrackingMode, v => s.TrackingMode = v, ["自動", "ICMP", "Windows API"]);

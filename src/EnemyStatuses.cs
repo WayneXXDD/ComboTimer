@@ -98,13 +98,21 @@ internal sealed unsafe class EnemyStatuses(IDataManager data)
                     group.Dispose();
                     return null;
                 }
+                // Match EnemyListDebuffs' native Axis font and spacing.
+                timer->DrawFlags = 12;
                 timer->AlignmentFontType = 4;
+                timer->LineSpacing = 12;
+                timer->CharSpacing = 0;
+                timer->FontSize = 12;
                 timer->TextFlags = TextFlags.Edge | TextFlags.AutoAdjustNodeSize;
-                timer->SetNumber(20);
+                timer->SetText("");
+                icon->ToggleVisibility(false);
+                timer->ToggleVisibility(false);
                 NativeNodes.Append(node, (AtkResNode*)icon);
                 NativeNodes.Append(node, (AtkResNode*)timer);
             }
             node->ChildCount = 8;
+            node->ToggleVisibility(false);
             var last = uld->RootNode;
             while (last->PrevSiblingNode != null) last = last->PrevSiblingNode;
             last->PrevSiblingNode = node;
@@ -120,12 +128,12 @@ internal sealed unsafe class EnemyStatuses(IDataManager data)
             var scale = Math.Clamp(settings.Scale, .1f, 5);
             parent->SetPositionFloat(settings.GroupX, settings.GroupY);
             parent->SetScale(scale, scale);
-            parent->ToggleVisibility(true);
             var sample = (AtkTextNode*)timers[0];
             sample->FontSize = (byte)Math.Clamp(settings.FontSize, 6, 80);
-            sample->SetNumber(20);
             ushort textWidth = 0, textHeight = 0;
-            sample->GetTextDrawSize(&textWidth, &textHeight);
+            // Measure a separate UTF-8 buffer without changing any displayed timer text.
+            byte* measureText = stackalloc byte[3] { (byte)'2', (byte)'0', 0 };
+            sample->GetTextDrawSize(&textWidth, &textHeight, measureText);
             var width = Math.Max(Math.Clamp(settings.IconWidth, 1, 128),
                 textWidth + 2 * Math.Clamp(settings.DurationPadding, 0, 30));
             parent->SetWidth((ushort)Math.Clamp(width * 4 + settings.NodeSpacing * 3, 1, 65535));
@@ -149,6 +157,7 @@ internal sealed unsafe class EnemyStatuses(IDataManager data)
 
         internal void Hide()
         {
+            if (root != 0) ((AtkResNode*)root)->ToggleVisibility(false);
             for (int i = 0; i < 4; i++)
             {
                 if (icons[i] != 0) ((AtkResNode*)icons[i])->ToggleVisibility(false);
@@ -168,6 +177,7 @@ internal sealed unsafe class EnemyStatuses(IDataManager data)
             timer->SetNumber(seconds);
             icon->ToggleVisibility(true);
             timer->ToggleVisibility(true);
+            ((AtkResNode*)root)->ToggleVisibility(true);
         }
 
         internal void Dispose()

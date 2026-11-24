@@ -21,11 +21,11 @@ internal sealed unsafe class StatisticsDisplay(IDtrBar dtr, IDalamudPluginInterf
     private Vector2 lastMonitorPosition = new(float.NaN);
     private Vector2 lastGraphPosition = new(float.NaN);
 
-    internal void Update(bool fpsActive, bool pingActive, FpsSettings fps, PingSettings ping)
+    internal void Update(bool fpsActive, bool pingActive, FpsSettings fps, PingSettings ping, uint dataCenterId)
     {
         Monitor.QueueSize = Math.Clamp(ping.PingQueueSize, 1, 300);
         Monitor.TrackingMode = ping.TrackingMode;
-        Monitor.SetActive(pingActive);
+        Monitor.SetActive(pingActive, dataCenterId);
         if (!fpsActive)
         {
             fpsEntry?.Remove(); fpsEntry = null;
@@ -71,7 +71,7 @@ internal sealed unsafe class StatisticsDisplay(IDtrBar dtr, IDalamudPluginInterf
                 var value = Monitor.Current;
                 var pieces = new List<string>();
                 if (ping.ServerBarDisplayLast) pieces.Add(value.Last.HasValue ? $"{value.Last:F0}ms" : "-- ms");
-                if (ping.ServerBarDisplayAverage) pieces.Add($"{value.Average:F0}ms");
+                if (ping.ServerBarDisplayAverage) pieces.Add(value.History.Length > 0 ? $"{value.Average:F0}ms" : "-- ms");
                 pingEntry.Text = string.Join("/", pieces);
                 pingEntry.Tooltip = "Ping";
                 pingEntry.Shown = true;
@@ -115,14 +115,15 @@ internal sealed unsafe class StatisticsDisplay(IDtrBar dtr, IDalamudPluginInterf
             {
                 var values = new List<string>();
                 if (settings.MicroDisplayLast) values.Add(latest);
-                if (settings.MicroDisplayAverage) values.Add($"{reading.Average:F0}ms");
+                if (settings.MicroDisplayAverage) values.Add(reading.History.Length > 0 ? $"{reading.Average:F0}ms" : "-- ms");
                 text = string.Join("/", values);
             }
             else
             {
                 text = settings.MinimalDisplay || settings.DisplayMode == 1 ? latest :
                     $"Address: {reading.Address}\nPing: {latest}";
-                if (!settings.HideAveragePing) text += $"\nAverage: {reading.Average:F2}ms";
+                if (!settings.HideAveragePing) text += "\nAverage: " +
+                    (reading.History.Length > 0 ? $"{reading.Average:F2}ms" : "-- ms");
             }
             ImGui.TextColored(reading.Last.HasValue ? settings.MonitorFontColor : settings.MonitorErrorFontColor, text);
             var position = ImGui.GetWindowPos();

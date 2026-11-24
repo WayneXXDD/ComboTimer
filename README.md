@@ -14,6 +14,13 @@
 
 設定視窗右上角有摺疊／展開按鈕。摺疊後保留標題列，各項功能繼續運作。
 
+## 1.1.0.1
+
+- Settings navigation uses the original English feature/plugin names.
+- EnemyListDebuffs no longer writes its width-measurement sample into a displayed timer. Empty groups stay hidden, and countdown font spacing matches the original plugin.
+- PingPlugin falls back to the current data center's lobby address when the Windows TCP table cannot identify the game server, as in the original PingPlugin. Settings identify fallback measurements because a proxy can make their latency differ from the actual game connection.
+- A failed ping method no longer discards a successful result from the other method. An average with no samples displays `-- ms`.
+
 ## Existing settings
 
 第一次從舊版 Combo Timer 升級時，自動讀取 EnmityHp、EnemyListDebuffs、Distance、BigPlayerDebuffs、FPSPlugin、PingPlugin 的設定，保留原有 Combo Timer 外觀。位置、大小、顏色、對齊、圖示尺寸及顯示條件會轉入整合版。Ping 浮窗實際拖曳後的位置會一併從 Dalamud 的介面位置檔讀取。
@@ -26,7 +33,7 @@
 
 ## Verification
 
-The regression runner covers the existing combo rules, Viper refresh durations, legacy JSON metadata, Distance backing-field/collection formats, position and color round trips, saved Ping window positions, ping aggregation and server-port filtering. The plugin builds against Dalamud API 15.
+The regression runner covers the existing combo rules, Viper refresh durations, legacy JSON metadata, Distance backing-field/collection formats, position and color round trips, saved Ping window positions, ping aggregation, independent backend failures, cancellation, server-port filtering and data-center fallback. The plugin builds against Dalamud API 15.
 
 The current user's six source settings were checked locally against the imported models. In-game native HUD placement, resize behavior and network measurements require live game verification.
 

@@ -251,3 +251,40 @@ Pos=invalid,4
 Equal(new System.Numerics.Vector2(-2,-5), pingConfig.MonitorPosition);
 Equal(new System.Numerics.Vector2(640,180), pingConfig.GraphPosition);
 Console.WriteLine("Passed saved ImGui position migration and invalid-coordinate checks.");
+
+// Forwarded or unavailable TCP endpoints must use the current data center rather than a local proxy.
+var fallbackAddresses = new[] { "119.252.36.6", "119.252.36.7", "119.252.36.8",
+    "204.2.29.6", "204.2.29.7", "80.239.145.6", "80.239.145.7", "204.2.29.8",
+    "153.254.80.103", "119.252.36.9", "204.2.29.9", "80.239.145.8" };
+for (uint i = 1; i <= fallbackAddresses.Length; i++)
+    Equal(fallbackAddresses[i - 1], PingMonitor.SelectAddress(null, i)?.ToString());
+Equal<System.Net.IPAddress?>(null, PingMonitor.SelectAddress(null, 0));
+Equal<System.Net.IPAddress?>(null, PingMonitor.SelectAddress(null, 999));
+foreach (var unusable in new[] { System.Net.IPAddress.Loopback, System.Net.IPAddress.IPv6Loopback,
+    System.Net.IPAddress.Any, System.Net.IPAddress.IPv6Any })
+    Equal("119.252.36.8", PingMonitor.SelectAddress(unusable, 3)?.ToString());
+var worldAddress = System.Net.IPAddress.Parse("203.0.113.10");
+Equal(worldAddress, PingMonitor.SelectAddress(worldAddress, 3));
+Equal(worldAddress, PingMonitor.SelectAddress(worldAddress, 0));
+// Moving between data centers changes the fallback, even without a visible world connection.
+Equal("80.239.145.6", PingMonitor.SelectAddress(null, 6)?.ToString());
+
+// One backend failing must not discard a successful result from the other backend.
+var failed = await PingMonitor.TryMeasurement(() => Task.FromException<double?>(
+    new System.Net.NetworkInformation.PingException("unavailable")), CancellationToken.None);
+var synchronousFailure = await PingMonitor.TryMeasurement(
+    () => throw new DllNotFoundException(), CancellationToken.None);
+var successful = await PingMonitor.TryMeasurement(() => Task.FromResult<double?>(42), CancellationToken.None);
+Equal<double?>(null, failed);
+Equal<double?>(null, synchronousFailure);
+Equal<double?>(42, PingMonitor.Choose(successful, failed));
+Equal<double?>(42, PingMonitor.Choose(failed, successful));
+using (var cancelled = new CancellationTokenSource())
+{
+    cancelled.Cancel();
+    bool propagated = false;
+    try { await PingMonitor.TryMeasurement(() => Task.FromCanceled<double?>(cancelled.Token), cancelled.Token); }
+    catch (OperationCanceledException) { propagated = true; }
+    Equal(true, propagated);
+}
+Console.WriteLine("Passed 26 data-center fallback, independent measurement failure and cancellation checks.");
