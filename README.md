@@ -1,16 +1,39 @@
 # Combo Timer (Wayne)
 
-在 Dalamud 搜尋 **Combo Timer (Wayne)**。停用 Simple Tweaks 的 **Combo Timer** 小功能可避免顯示兩組倒數；其他小功能可以繼續使用。輸入 `/waynecombo` 開啟外觀設定。
+在 Dalamud 搜尋 **Combo Timer (Wayne)**，用 `/waynecombo` 開啟設定。整合版沿用原本的插件識別及更新網址。
 
-- Viper（PvE）持續顯示玩家身上的 Honed Steel 或 Honed Reavers 剩餘秒數。打第二、第三段、按鍵變化或亮框暫時消失時，都會繼續倒數。取得新的對應強化時，數字會同步更新為遊戲內實際的剩餘時間。自身增益剛刷新時的負值時間會以絕對值顯示，避免等待伺服器確認期間短暫消失；插件沒有 60 秒顯示上限。強化到期或消失時結束倒數。勾選 Always visible 可在沒有倒數時顯示 0。
-- 其他職業與 PvP 使用 Simple Tweaks 的通用連段倒數與等級判定，含原有的龍騎、赤魔例外。龍騎、機工、武士與赤魔的升級／強化技能會對應回遊戲連段表中的基礎技能，讓強化後的連段也能顯示倒數。等級判定會排除舊技能及 NPC 專用資料。
-- 首次載入時讀取本機 Simple Tweaks Combo Timer 的外觀設定。往後的調整儲存在此插件自己的設定檔。
-- 遊戲內驗證可分別使用兩個起手技，觀察對應強化的倒數。接第二、第三段或切換其他技能時，數字應持續與增益剩餘時間一致，並在強化更新或到期時同步改變。
+七個功能各有獨立勾選開關及設定頁。
+
+- 連段倒數。Viper PvE 持續追蹤 Honed Steel／Honed Reavers；其他職業使用遊戲通用連段時間，包含升級技能對應與等級同步判定。
+- 敵人清單血量。
+- 敵人清單中由自己施加的狀態及倒數。
+- 目標、暫選目標、焦點及滑鼠目標的距離顯示，可建立多個項目。
+- 放大自己施加在目前目標上的狀態圖示。
+- DTR FPS 顯示與歷史統計。
+- Ping 浮窗、歷史圖及 DTR 顯示。
+
+設定視窗右上角有摺疊／展開按鈕。摺疊後保留標題列，各項功能繼續運作。
+
+## Existing settings
+
+第一次從舊版 Combo Timer 升級時，自動讀取 EnmityHp、EnemyListDebuffs、Distance、BigPlayerDebuffs、FPSPlugin、PingPlugin 的設定，保留原有 Combo Timer 外觀。位置、大小、顏色、對齊、圖示尺寸及顯示條件會轉入整合版。Ping 浮窗實際拖曳後的位置會一併從 Dalamud 的介面位置檔讀取。
+
+匯入完成後，設定保存在整合版的設定檔。左下角的「匯入原設定」可重新讀取。
+
+當 EnmityHp、EnemyListDebuffs、Distance、BigPlayerDebuffs、FPSPlugin 或 PingPlugin 仍載入時，整合版對應模組會暫停並在設定頁提示。停用原插件後，該模組會自動接手。這可避免重複顯示與同時修改同一處原生介面。
+
+首次匯入時，找到原設定檔的功能會依原本開關啟用。其餘功能可在整合設定中勾選。
+
+## Verification
+
+The regression runner covers the existing combo rules, Viper refresh durations, legacy JSON metadata, Distance backing-field/collection formats, position and color round trips, saved Ping window positions, ping aggregation and server-port filtering. The plugin builds against Dalamud API 15.
+
+The current user's six source settings were checked locally against the imported models. In-game native HUD placement, resize behavior and network measurements require live game verification.
 
 ## Source and license
 
-The native HUD layout and non-Viper timer logic are adapted from [Caraxi/SimpleTweaksPlugin, ComboTimer](https://github.com/Caraxi/SimpleTweaksPlugin/blob/d6a27f1acf7eb0da4a89459fe23960a9ded769fb/Tweaks/UiAdjustment/ComboTimer.cs). Credit to Caraxi and the Simple Tweaks contributors. This standalone adaptation adds continuous Viper enhancement tracking and is distributed under the [GNU Affero General Public License v3.0](LICENSE). Source for this release is available in this repository.
+The original combo timer HUD and non-Viper logic are adapted from [Caraxi/SimpleTweaksPlugin](https://github.com/Caraxi/SimpleTweaksPlugin/blob/d6a27f1acf7eb0da4a89459fe23960a9ded769fb/Tweaks/UiAdjustment/ComboTimer.cs), with credit to Caraxi and the Simple Tweaks contributors.
 
-## PvE combo data audit
+Enemy status layout and Distance-compatible anchoring follow their MIT-licensed upstreams. Server detection and ping aggregation are adapted from PingPlugin. Required notices are included in [THIRD-PARTY-NOTICES.txt](THIRD-PARTY-NOTICES.txt).
 
-Version 1.0.0.4 was checked against the current game's Action and Trait data for all combat jobs, including basic-class predecessors, area combos and level sync. Data checks cover PLD, WAR, DRK, GNB, DRG, NIN, MCH, SAM, RDM, DNC, RPR, PCT and BST. VPR uses the Honed enhancement tracking described above. MNK, BRD, BLM, SMN, WHM, SCH, AST, SGE and BLU use the generic timer when the game supplies a native combo. In-game HUD verification is still required.
+The combined plugin is distributed under the [GNU Affero General Public License v3.0](LICENSE). Corresponding source is available in this repository.

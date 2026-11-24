@@ -167,3 +167,87 @@ CheckCombo(44879, 2, true);
 CheckCombo(44883, 12, true);
 CheckCombo(44885, 100, false);
 Console.WriteLine("Passed 98 standard combo availability checks across all native PvE combo jobs.");
+
+static void Equal<T>(T expected, T actual)
+{
+    if (!EqualityComparer<T>.Default.Equals(expected, actual))
+        throw new Exception($"Expected {expected}, got {actual}.");
+}
+
+// Newtonsoft type metadata and private backing fields must not alter migrated positions or colors.
+var hp = SettingsImport.Read<EnemyHpSettings>("""
+{"$type":"EnmityHp.Config, EnmityHp","OffsetX":0,"OffsetY":-4,"Size":1.2,"Color":null,"BGColor":null,
+"PaddingX":2,"PaddingY":0,"FrameBorderColor":{"$type":"Vector","X":0.66,"Y":0,"Z":0,"W":1}}
+""");
+Equal(0, hp.OffsetX); Equal(-4, hp.OffsetY); Equal(1.2f, hp.Size);
+Equal<System.Numerics.Vector4?>(null, hp.Color);
+Equal(0.66f, hp.FrameBorderColor.X);
+var debuffs = SettingsImport.Read<EnemyDebuffSettings>("""
+{"Enabled":true,"UpdateInterval":50,"GroupX":124,"GroupY":0,"Scale":1.079,"IconWidth":18,"IconHeight":24,
+"FontSize":12,"FillFromRight":true,"DurationTextColor":{"X":1,"Y":1,"Z":1,"W":1},
+"DurationEdgeColor":{"X":0,"Y":0,"Z":0,"W":1}}
+""");
+Equal(124, debuffs.GroupX); Equal(1.079f, debuffs.Scale);
+Equal(18, debuffs.IconWidth); Equal(24, debuffs.IconHeight);
+Equal(12, debuffs.FontSize); Equal(50, debuffs.UpdateInterval);
+Equal(System.Numerics.Vector4.One, debuffs.DurationTextColor);
+var distance = SettingsImport.Read<DistanceSettings>("""
+{"DistanceWidgetConfigs":{"$type":"List","$values":[
+{"mTextPosition":{"X":-999,"Y":1},"TextPosition":{"$type":"Vector","X":-200,"Y":30},
+"mApplicableTargetType":6,"ApplicableTargetType":6,"mFontSize":14,"DecimalPrecision":2,
+"TextColor":{"X":1,"Y":0.972549,"Z":0.6901961,"W":1},"Filters":{"mShowDistanceOnPlayers":true}},
+{"TextPosition":{"X":-200,"Y":30},"ApplicableTargetType":2,"FontSize":14,"DistanceIsToRing":true}
+]}}
+""");
+Equal(2, distance.DistanceWidgetConfigs.Count);
+Equal(new System.Numerics.Vector2(-200,30), distance.DistanceWidgetConfigs[0].TextPosition);
+Equal(6, distance.DistanceWidgetConfigs[0].ApplicableTargetType);
+Equal(2, distance.DistanceWidgetConfigs[1].ApplicableTargetType);
+Equal(14, distance.DistanceWidgetConfigs[0].FontSize);
+Equal(true, distance.DistanceWidgetConfigs[0].Filters.ShowDistanceOnPlayers);
+Equal(0.972549f, distance.DistanceWidgetConfigs[0].TextColor.Y);
+var pingConfig = SettingsImport.Read<PingSettings>("""
+{"MonitorPosition":{"$type":"Vector","X":300,"Y":150},"GraphPosition":{"X":600,"Y":150},
+"FontScale":17,"MonitorBgAlpha":0,"MonitorFontColor":{"X":1,"Y":1,"Z":0,"W":1},
+"MonitorIsVisible":true,"DisplayMode":0,"TrackingMode":0,"PingQueueSize":20}
+""");
+Equal(new System.Numerics.Vector2(300,150), pingConfig.MonitorPosition);
+Equal(17f, pingConfig.FontScale); Equal(0f, pingConfig.MonitorBgAlpha);
+Equal(new System.Numerics.Vector4(1,1,0,1), pingConfig.MonitorFontColor);
+Equal(true, pingConfig.MonitorIsVisible);
+var fpsConfig = SettingsImport.Read<FpsSettings>("""{"Enable":true,"AlternativeFPSLabel":true,"HistorySnapshotCount":300}""");
+Equal(true, fpsConfig.Enable); Equal(true, fpsConfig.AlternativeFPSLabel); Equal(300, fpsConfig.HistorySnapshotCount);
+var roundTrip = SettingsImport.Read<DistanceSettings>(System.Text.Json.JsonSerializer.Serialize(distance, SettingsImport.JsonOptions));
+Equal(distance.DistanceWidgetConfigs[0].TextColor, roundTrip.DistanceWidgetConfigs[0].TextColor);
+Equal(distance.DistanceWidgetConfigs[1].TextPosition, roundTrip.DistanceWidgetConfigs[1].TextPosition);
+Equal<double?>(52, PingMonitor.Choose(50,52));
+Equal<double?>(100, PingMonitor.Choose(100,40));
+Equal<double?>(40, PingMonitor.Choose(null,40));
+Equal<double?>(45, PingMonitor.Choose(45,null));
+Equal<double?>(null, PingMonitor.Choose(null,null));
+Equal(true, PingMonitor.IsGamePort(55021)); Equal(true, PingMonitor.IsGamePort(55551));
+Equal(false, PingMonitor.IsGamePort(443)); Equal(false, PingMonitor.IsGamePort(55041));
+Console.WriteLine("Passed settings migration, round-trip, ping aggregation and server-port checks.");
+
+SettingsImport.ImportPingWindowPositions(pingConfig, """
+[Window][unrelated]
+Pos=987,654
+[Window][###PingPluginMonitor]
+Pos=-2,-5
+Size=226,87
+[Window][Ping history###PingPluginGraph]
+Pos=640,180
+[Window][ignored]
+Pos=123,456
+""");
+Equal(new System.Numerics.Vector2(-2,-5), pingConfig.MonitorPosition);
+Equal(new System.Numerics.Vector2(640,180), pingConfig.GraphPosition);
+SettingsImport.ImportPingWindowPositions(pingConfig, """
+[Window][###PingPluginMonitor]
+Pos=NaN,4
+[Window][###PingPluginGraph]
+Pos=invalid,4
+""");
+Equal(new System.Numerics.Vector2(-2,-5), pingConfig.MonitorPosition);
+Equal(new System.Numerics.Vector2(640,180), pingConfig.GraphPosition);
+Console.WriteLine("Passed saved ImGui position migration and invalid-coordinate checks.");

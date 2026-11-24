@@ -2,9 +2,14 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../src/ViperStarter.cs" Link="ViperStarter.cs" />
     <Compile Include="../src/ComboActions.cs" Link="ComboActions.cs" />
+    <Compile Include="../src/ModuleSettings.cs" Link="ModuleSettings.cs" />
+    <Compile Include="../src/SettingsImport.cs" Link="SettingsImport.cs" />
+    <Compile Include="../src/PingMonitor.cs" Link="PingMonitor.cs" />
   </ItemGroup>
 </Project>
