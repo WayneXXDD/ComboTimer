@@ -85,15 +85,18 @@ internal sealed unsafe class StatisticsDisplay(IDtrBar dtr, IDalamudPluginInterf
         if (!active || (cutscene && settings.HideOverlaysDuringCutscenes)) return;
         var reading = Monitor.Current;
         if (!reading.Last.HasValue && settings.HideErrors) return;
-        var desiredFontSize = Math.Clamp(settings.FontScale, 8, 80);
+        var desiredFontSize = Math.Clamp(settings.FontScale, 8, 128);
         if (fontSize != desiredFontSize && !ImGui.IsAnyItemActive())
         {
             fontSize = desiredFontSize;
             pingFont?.Dispose();
             var pixels = desiredFontSize;
             pingFont = pi.UiBuilder.FontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(toolkit =>
-                toolkit.AddDalamudAssetFont(Dalamud.DalamudAsset.NotoSansCjkMedium,
-                    new SafeFontConfig { SizePx = pixels })));
+            {
+                var fontConfig = new SafeFontConfig { SizePx = pixels };
+                toolkit.AddDalamudAssetFont(Dalamud.DalamudAsset.NotoSansCjkMedium, fontConfig);
+                toolkit.AttachExtraGlyphsForDalamudLanguage(fontConfig);
+            }));
         }
         using var fontScope = pingFont?.Push();
         var flags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoSavedSettings |
@@ -107,8 +110,9 @@ internal sealed unsafe class StatisticsDisplay(IDtrBar dtr, IDalamudPluginInterf
             ImGui.SetNextWindowBgAlpha(Math.Clamp(settings.MonitorBgAlpha, 0, 1));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0);
             ImGui.Begin("Ping###WaynePingMonitor", flags);
+            // Keep the atlas' global scaling, just as PingPlugin does.
+            // Reset the per-window factor left by the old integration during a live update.
             ImGui.SetWindowFontScale(1);
-            ImGui.SetWindowFontScale(Math.Clamp(settings.FontScale, 8, 80) / ImGui.GetFontSize());
             var latest = reading.Last.HasValue ? $"{reading.Last:F0}ms" : "-- ms";
             string text;
             if (settings.DisplayMode == 2)

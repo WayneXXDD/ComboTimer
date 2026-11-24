@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['src/**', 'tests/**', 'WayneComboTimer.json', 'LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.txt', '.github/workflows/build.yml']
+    paths: ['src/**', 'tests/**', 'assets/**', 'WayneComboTimer.json', 'LICENSE', 'README.md', 'THIRD-PARTY-NOTICES.txt', '.github/workflows/build.yml']
 permissions:
   contents: write
 concurrency:
@@ -60,11 +60,11 @@ jobs:
           $folder = Join-Path $feed 'plugins/WayneComboTimer'
           New-Item -ItemType Directory -Force $folder | Out-Null
           $zip = Join-Path $folder 'latest.zip'
-          Compress-Archive -LiteralPath build/WayneComboTimer.dll,WayneComboTimer.json,LICENSE,README.md,THIRD-PARTY-NOTICES.txt -DestinationPath $zip -Force
+          Compress-Archive -LiteralPath build/WayneComboTimer.dll,WayneComboTimer.json,LICENSE,README.md,THIRD-PARTY-NOTICES.txt,assets/icon.png -DestinationPath $zip -Force
           $archive = [IO.Compression.ZipFile]::OpenRead($zip)
           try {
             $names = @($archive.Entries.FullName | Sort-Object)
-            if (($names -join ',') -cne 'LICENSE,README.md,THIRD-PARTY-NOTICES.txt,WayneComboTimer.dll,WayneComboTimer.json') { throw "Unexpected ZIP entries: $names" }
+            if (($names -join ',') -cne 'icon.png,LICENSE,README.md,THIRD-PARTY-NOTICES.txt,WayneComboTimer.dll,WayneComboTimer.json') { throw "Unexpected ZIP entries: $names" }
           } finally { $archive.Dispose() }
           [IO.File]::WriteAllText($previous, (ConvertTo-Json -InputObject @($m) -Depth 20) + [Environment]::NewLine)
           Git @('-C',$feed,'config','user.name','github-actions[bot]')

@@ -1,6 +1,6 @@
 # Combo Timer (Wayne)
 
-在 Dalamud 搜尋 **Combo Timer (Wayne)**，用 `/waynecombo` 開啟設定。整合版沿用原本的插件識別及更新網址。
+在 Dalamud 搜尋 **Combo Timer (Wayne)**，用 `/ct` 開啟設定。整合版沿用原本的插件識別及更新網址。
 
 七個功能各有獨立勾選開關及設定頁。
 
@@ -13,6 +13,12 @@
 - Ping 浮窗、歷史圖及 DTR 顯示。
 
 設定視窗右上角有摺疊／展開按鈕。摺疊後保留標題列，各項功能繼續運作。
+
+## 1.1.0.2
+
+- Open settings with `/ct`.
+- Added an original cyan-and-gold countdown/combo icon for the plugin installer.
+- Restored PingPlugin's original Noto Sans CJK Medium font handling, language glyphs and global UI scaling. A configured size of 17 now follows Dalamud's scale instead of being forced to 17 screen pixels. Existing positions, colors and configured font size are preserved.
 
 ## 1.1.0.1
 

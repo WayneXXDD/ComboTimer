@@ -59,7 +59,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         pi.UiBuilder.Draw += Draw;
         pi.UiBuilder.OpenConfigUi += OpenSettings;
         pi.UiBuilder.OpenMainUi += OpenSettings;
-        commands.AddHandler("/waynecombo", new CommandInfo((_, _) => OpenSettings())
+        commands.AddHandler("/ct", new CommandInfo((_, _) => OpenSettings())
             { HelpMessage = "開啟 Combo Timer 整合設定。" });
     }
 
@@ -163,7 +163,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
-        commands.RemoveHandler("/waynecombo");
+        commands.RemoveHandler("/ct");
         pi.UiBuilder.OpenConfigUi -= OpenSettings;
         pi.UiBuilder.OpenMainUi -= OpenSettings;
         pi.UiBuilder.Draw -= Draw;

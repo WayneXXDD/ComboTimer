@@ -279,7 +279,7 @@ internal sealed class SettingsUi : IDisposable
         Check("滑鼠穿透", s.ClickThrough, v => s.ClickThrough = v);
         Position("浮窗位置", s.MonitorPosition, v => s.MonitorPosition = v);
         Position("歷史圖位置", s.GraphPosition, v => s.GraphPosition = v);
-        Float("字體大小", s.FontScale, v => s.FontScale = v, 8, 80);
+        Float("字體大小", s.FontScale, v => s.FontScale = v, 8, 128);
         Float("背景透明度", s.MonitorBgAlpha, v => s.MonitorBgAlpha = v, 0, 1);
         Color("文字顏色", s.MonitorFontColor, v => s.MonitorFontColor = v);
         Color("錯誤顏色", s.MonitorErrorFontColor, v => s.MonitorErrorFontColor = v);
