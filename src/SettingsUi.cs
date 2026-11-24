@@ -9,12 +9,11 @@ namespace WayneComboTimer;
 internal sealed class SettingsUi : IDisposable
 {
     internal static readonly string[] Names = ["Combo Timer", "EnemyListHP", "EnemyListDebuffs", "Distance", "BigPlayerDebuffs", "FPS Plugin", "PingPlugin"];
-    internal static readonly string[] Sources = ["SimpleTweaksPlugin", "EnmityHp", "EnemyListDebuffs", "Distance",
-        "BigPlayerDebuffs", "FPSPlugin", "PingPlugin"];
+    internal static IReadOnlyList<string> Sources => SourceConflictGuard.Sources;
     private readonly IDalamudPluginInterface pi;
     private readonly Configuration c;
     private readonly IPluginLog log;
-    private readonly Func<int, bool> sourceLoaded;
+    private readonly Func<int, string?> conflictReason;
     private readonly Action changed;
     private readonly IFontHandle? font;
     private List<string> importResults = [];
@@ -24,9 +23,9 @@ internal sealed class SettingsUi : IDisposable
     internal string PingStatus { get; set; } = "正在取得測量位址…";
 
     internal SettingsUi(IDalamudPluginInterface pi, Configuration config, IPluginLog log,
-        Func<int, bool> sourceLoaded, Action changed)
+        Func<int, string?> conflictReason, Action changed)
     {
-        this.pi = pi; c = config; this.log = log; this.sourceLoaded = sourceLoaded; this.changed = changed;
+        this.pi = pi; c = config; this.log = log; this.conflictReason = conflictReason; this.changed = changed;
         var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Fonts), "msjh.ttc");
         if (File.Exists(path))
         {
@@ -67,7 +66,9 @@ internal sealed class SettingsUi : IDisposable
             for (int i = 0; i < Names.Length; i++)
             {
                 ImGui.PushID(i);
-                var enabled = c.Modules[i];
+                var conflict = conflictReason(i);
+                var enabled = c.Modules[i] && conflict is null;
+                ImGui.BeginDisabled(conflict is not null);
                 if (ImGui.Checkbox("##enabled", ref enabled))
                 {
                     c.Modules[i] = enabled;
@@ -75,6 +76,9 @@ internal sealed class SettingsUi : IDisposable
                     if (i == 5) c.Fps.Enable = enabled;
                     changed();
                 }
+                ImGui.EndDisabled();
+                if (conflict is not null && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                    ImGui.SetTooltip(conflict);
                 ImGui.SameLine();
                 if (ImGui.Selectable(Names[i], selected == i)) selected = i;
                 ImGui.PopID();
@@ -93,9 +97,11 @@ internal sealed class SettingsUi : IDisposable
             ImGui.BeginChild("settings", new Vector2(0, 0), false);
             ImGui.TextUnformatted(Names[selected]);
             ImGui.Separator();
-            if (selected != 0 && sourceLoaded(selected))
+            var selectedConflict = conflictReason(selected);
+            if (selectedConflict is not null)
             {
-                ImGui.TextWrapped("原插件仍載入，這個模組暫停。停用原插件後會自動接手，沿用已匯入的設定。");
+                ImGui.TextWrapped(selectedConflict);
+                ImGui.TextWrapped("衝突期間無法勾選。關閉原插件或 SimpleTweaks 的 Combo Timer 後，再手動勾選此功能。");
                 if (ImGui.Button("開啟原插件清單")) pi.OpenPluginInstallerTo(searchText: Sources[selected]);
                 ImGui.Separator();
             }

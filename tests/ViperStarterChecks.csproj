@@ -11,5 +11,6 @@
     <Compile Include="../src/ModuleSettings.cs" Link="ModuleSettings.cs" />
     <Compile Include="../src/SettingsImport.cs" Link="SettingsImport.cs" />
     <Compile Include="../src/PingMonitor.cs" Link="PingMonitor.cs" />
+    <Compile Include="../src/SourceConflictGuard.cs" Link="SourceConflictGuard.cs" />
   </ItemGroup>
 </Project>

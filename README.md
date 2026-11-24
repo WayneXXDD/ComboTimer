@@ -14,6 +14,13 @@
 
 設定視窗右上角有摺疊／展開按鈕。摺疊後保留標題列，各項功能繼續運作。
 
+## 1.1.0.3
+
+- Automatically uncheck and save any integrated module whose original plugin is loaded. A blocked module cannot be switched on from settings.
+- SimpleTweaks is checked specifically for its Combo Timer feature; its other tweaks do not disable the integrated timer.
+- Plugin load/unload events trigger a refresh on the next framework update. A one-second fallback check also detects changes to SimpleTweaks' settings, re-reading its file only when changed.
+- After resolving a conflict, manually enable the desired integrated module. Existing positions, sizes and colors are preserved.
+
 ## 1.1.0.2
 
 - Open settings with `/ct`.
@@ -33,13 +40,15 @@
 
 匯入完成後，設定保存在整合版的設定檔。左下角的「匯入原設定」可重新讀取。
 
-當 EnmityHp、EnemyListDebuffs、Distance、BigPlayerDebuffs、FPSPlugin 或 PingPlugin 仍載入時，整合版對應模組會暫停並在設定頁提示。停用原插件後，該模組會自動接手。這可避免重複顯示與同時修改同一處原生介面。
+當 EnmityHp、EnemyListDebuffs、Distance、BigPlayerDebuffs、FPSPlugin 或 PingPlugin 仍載入時，整合版會自動取消對應功能的勾選並儲存，設定頁也會顯示原因。SimpleTweaks 只在其 Combo Timer 功能啟用時影響整合版連段倒數，其他 tweaks 可繼續使用。若無法確認 SimpleTweaks 的開關，連段倒數會先停用，避免同時寫入原生介面。
+
+衝突期間無法重新勾選。停用原插件或 SimpleTweaks 的 Combo Timer 後，請手動開啟要使用的整合功能。位置、大小及顏色設定仍會保留。
 
 首次匯入時，找到原設定檔的功能會依原本開關啟用。其餘功能可在整合設定中勾選。
 
 ## Verification
 
-The regression runner covers the existing combo rules, Viper refresh durations, legacy JSON metadata, Distance backing-field/collection formats, position and color round trips, saved Ping window positions, ping aggregation, independent backend failures, cancellation, server-port filtering and data-center fallback. The plugin builds against Dalamud API 15.
+The regression runner covers the existing combo rules, Viper refresh durations, legacy JSON metadata, Distance backing-field/collection formats, position and color round trips, saved Ping window positions, ping aggregation, independent backend failures, cancellation, server-port filtering, data-center fallback, loaded-plugin conflicts and SimpleTweaks Combo Timer state changes. The plugin builds against Dalamud API 15.
 
 The current user's six source settings were checked locally against the imported models. In-game native HUD placement, resize behavior and network measurements require live game verification.
 

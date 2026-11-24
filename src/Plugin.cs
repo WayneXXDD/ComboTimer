@@ -34,6 +34,8 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private readonly StatisticsDisplay statistics;
     private readonly SettingsUi settings;
     private readonly bool[] originalLoaded = new bool[7];
+    private readonly SourceConflictGuard sourceGuard;
+    private volatile bool sourceCheckRequested;
     private bool dirty;
     private long lastSave;
     private long lastSourceCheck;
@@ -50,12 +52,15 @@ public sealed unsafe class Plugin : IDalamudPlugin
         timer = new(data);
         statuses = new(data);
         distances = new(gui, targets, objects);
-        settings = new(pi, config, log, i => originalLoaded[i], MarkChanged);
+        var configRoot = pi.ConfigDirectory.Parent?.FullName;
+        sourceGuard = new(configRoot is null ? null : Path.Combine(configRoot, "SimpleTweaksPlugin.json"));
+        settings = new(pi, config, log, ConflictReason, MarkChanged);
         statistics = new(dtr, pi, settings.Open, MarkChanged);
         CheckSources();
         lifecycle.RegisterListener(AddonEvent.PreDraw, Hosts, OnDrawHud);
         lifecycle.RegisterListener(AddonEvent.PreFinalize, Hosts, OnFinalizeHud);
         framework.Update += OnFramework;
+        pi.ActivePluginsChanged += OnActivePluginsChanged;
         pi.UiBuilder.Draw += Draw;
         pi.UiBuilder.OpenConfigUi += OpenSettings;
         pi.UiBuilder.OpenMainUi += OpenSettings;
@@ -67,11 +72,30 @@ public sealed unsafe class Plugin : IDalamudPlugin
     private void OpenSettings() => settings.Open();
     private bool Active(int module) => config.Modules[module] && !originalLoaded[module];
 
+    private void OnActivePluginsChanged(IActivePluginsChangedEventArgs _) => sourceCheckRequested = true;
+
+    private string? ConflictReason(int module)
+    {
+        if (!originalLoaded[module]) return null;
+        if (module == 0)
+            return sourceGuard.SimpleStateUnknown
+                ? "無法確認 SimpleTweaks 的 Combo Timer 開關，已停用整合版連段倒數以避免衝突。"
+                : "SimpleTweaks 的 Combo Timer 已啟用，整合版連段倒數已自動關閉。";
+        return SettingsUi.Names[module] + " 原插件已啟用，整合版對應功能已自動關閉。";
+    }
+
     private void CheckSources()
     {
-        var plugins = pi.InstalledPlugins.ToArray();
-        for (int i = 1; i < originalLoaded.Length; i++)
-            originalLoaded[i] = plugins.Any(p => p.IsLoaded && p.InternalName == SettingsUi.Sources[i]);
+        var blocked = sourceGuard.Detect(pi.InstalledPlugins.Select(p => (p.InternalName, p.IsLoaded)));
+        Array.Copy(blocked, originalLoaded, originalLoaded.Length);
+        if (SourceConflictGuard.DisableModules(config.Modules, blocked))
+        {
+            config.EnemyDebuffs.Enabled = config.Modules[2];
+            config.Fps.Enable = config.Modules[5];
+            MarkChanged();
+            log.Warning("Disabled conflicting integrated modules: {Modules}",
+                string.Join(", ", Enumerable.Range(0, blocked.Length).Where(i => blocked[i]).Select(i => SettingsUi.Names[i])));
+        }
         lastSourceCheck = Stopwatch.GetTimestamp();
     }
 
@@ -79,7 +103,11 @@ public sealed unsafe class Plugin : IDalamudPlugin
     {
         try
         {
-            if (Stopwatch.GetElapsedTime(lastSourceCheck).TotalSeconds > 1) CheckSources();
+            if (sourceCheckRequested || Stopwatch.GetElapsedTime(lastSourceCheck).TotalSeconds >= 1)
+            {
+                sourceCheckRequested = false;
+                CheckSources();
+            }
             // Read game objects only on the framework thread; the worker receives just the DC ID.
             uint dataCenterId = objects.LocalPlayer?.CurrentWorld.ValueNullable?.DataCenter.RowId ?? 0u;
             statistics.Update(Active(5), Active(6) && client.IsLoggedIn, config.Fps, config.Ping, dataCenterId);
@@ -168,6 +196,7 @@ public sealed unsafe class Plugin : IDalamudPlugin
         pi.UiBuilder.OpenMainUi -= OpenSettings;
         pi.UiBuilder.Draw -= Draw;
         framework.Update -= OnFramework;
+        pi.ActivePluginsChanged -= OnActivePluginsChanged;
         lifecycle.UnregisterListener(AddonEvent.PreDraw, OnDrawHud);
         lifecycle.UnregisterListener(AddonEvent.PreFinalize, OnFinalizeHud);
         framework.RunOnFrameworkThread(() =>

@@ -288,3 +288,91 @@ using (var cancelled = new CancellationTokenSource())
     Equal(true, propagated);
 }
 Console.WriteLine("Passed 26 data-center fallback, independent measurement failure and cancellation checks.");
+
+
+// Installed-but-disabled plugins must not suppress their replacement; loaded plugins must.
+var conflictRoot = Path.Combine(Path.GetTempPath(), "wayne-combo-conflicts-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(conflictRoot);
+var simplePath = Path.Combine(conflictRoot, "SimpleTweaksPlugin.json");
+int configRevision = 0;
+void WriteSimple(string json)
+{
+    File.WriteAllText(simplePath, json);
+    File.SetLastWriteTimeUtc(simplePath, DateTime.UtcNow.AddSeconds(++configRevision));
+}
+try
+{
+    var guard = new SourceConflictGuard(simplePath);
+    var allEnabled = Enumerable.Repeat(true, 7).ToArray();
+    Equal(false, SourceConflictGuard.DisableModules(allEnabled, guard.Detect([])));
+    Equal(true, allEnabled.All(v => v));
+    for (int original = 1; original < SourceConflictGuard.Sources.Count; original++)
+    {
+        string name = SourceConflictGuard.Sources[original];
+        var inactive = guard.Detect([(name, false)]);
+        Equal(false, inactive.Any(v => v));
+        var blocked = guard.Detect([(name, true)]);
+        var enabled = Enumerable.Repeat(true, 7).ToArray();
+        Equal(true, SourceConflictGuard.DisableModules(enabled, blocked));
+        for (int module = 0; module < enabled.Length; module++)
+            Equal(module != original, enabled[module]);
+        Equal(false, SourceConflictGuard.DisableModules(enabled, blocked));
+        // Resolving a conflict must not silently switch the feature back on.
+        Equal(false, SourceConflictGuard.DisableModules(enabled, guard.Detect([])));
+        Equal(false, enabled[original]);
+    }
+
+    WriteSimple("""{"EnabledTweaks":["UiAdjustments@TargetHP","UiAdjustments@PartyListStatusTimers"]}""");
+    Equal(false, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(false, guard.SimpleStateUnknown);
+    // Toggling the tweak while SimpleTweaks remains loaded must refresh its cached state.
+    WriteSimple("""{"EnabledTweaks":["UiAdjustments@ComboTimer","UiAdjustments@TargetHP"]}""");
+    var timerBlocked = guard.Detect([("SimpleTweaksPlugin", true)]);
+    Equal(true, timerBlocked[0]);
+    Equal(false, timerBlocked.Skip(1).Any(v => v));
+    var modules = Enumerable.Repeat(true, 7).ToArray();
+    Equal(true, SourceConflictGuard.DisableModules(modules, timerBlocked));
+    Equal(false, modules[0]);
+    Equal(true, modules.Skip(1).All(v => v));
+
+    // An explicit re-import or stale configuration cannot re-enable a blocked module.
+    modules[0] = true;
+    Equal(true, SourceConflictGuard.DisableModules(modules, timerBlocked));
+    Equal(false, modules[0]);
+    WriteSimple("""{"EnabledTweaks":[]}""");
+    Equal(false, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(false, SourceConflictGuard.DisableModules(modules, guard.Detect([("SimpleTweaksPlugin", true)])));
+    Equal(false, modules[0]);
+    modules[0] = true; // User can opt in after resolving the conflict.
+    Equal(false, SourceConflictGuard.DisableModules(modules, guard.Detect([("SimpleTweaksPlugin", true)])));
+
+    WriteSimple("""{"EnabledTweaks":{"$type":"List","$values":["UiAdjustments@ComboTimer"]}}""");
+    Equal(true, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(false, guard.Detect([("SimpleTweaksPlugin", false)])[0]);
+    Equal<bool?>(true, SourceConflictGuard.ParseSimpleState("""{"EnabledTweaks":["ComboTimer"]}"""));
+    Equal<bool?>(false, SourceConflictGuard.ParseSimpleState("""{"EnabledTweaks":["UiAdjustments@ComboTimerPreview"]}"""));
+    Equal<bool?>(null, SourceConflictGuard.ParseSimpleState("""{"EnabledTweaks":null}"""));
+    Equal<bool?>(null, SourceConflictGuard.ParseSimpleState("""{"EnabledTweaks":[1]}"""));
+    Equal<bool?>(null, SourceConflictGuard.ParseSimpleState("""{"other":[]}"""));
+    Equal<bool?>(null, SourceConflictGuard.ParseSimpleState("not json"));
+
+    // Unreadable/partial settings must fail safely, then recover without a plugin restart.
+    WriteSimple("partial");
+    Equal(true, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(true, guard.SimpleStateUnknown);
+    WriteSimple("""{"EnabledTweaks":[]}""");
+    Equal(false, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(false, guard.SimpleStateUnknown);
+    File.Delete(simplePath);
+    Equal(true, guard.Detect([("SimpleTweaksPlugin", true)])[0]);
+    Equal(true, guard.SimpleStateUnknown);
+    Equal(false, guard.Detect([]).Any(v => v));
+    Equal(false, guard.SimpleStateUnknown);
+    Equal(true, new SourceConflictGuard(null).Detect([("SimpleTweaksPlugin", true)])[0]);
+}
+finally
+{
+    if (File.Exists(simplePath)) File.Delete(simplePath);
+    Directory.Delete(conflictRoot);
+}
+Console.WriteLine("Passed all seven source-conflict mappings, SimpleTweaks live-toggle, safe-failure and re-enable checks.");
